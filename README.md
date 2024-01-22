@@ -13,7 +13,7 @@ to be announced
 
 ## 🔗 Links
 **Click here**   
-       [Notion](https://www.notion.so/2023-12-025993860f1c4be2b3d87c5dae23cf03?pvs=4) 
+      [Notion](https://www.notion.so/2023-12-025993860f1c4be2b3d87c5dae23cf03?pvs=4) 
          [Youtube](https://www.youtube.com/watch?v=7K3Hfz9UwnM)
 
 
