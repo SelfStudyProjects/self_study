@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>오른쪽 클릭 금지</title>
+    </head>
+    <body>
+      <script>
+          function searchUser(userName, password) {
+            const requestObj = new XMLHttpRequest();
+            requestObj.open('GET', 'users.json');
+            requestObj.onreadystatechange = () => {
+                if (requestObj.readyState == 4 && requestObj.status == "200") {
+
+                    const result = JSON.parse(requestObj.responseText);
+
+                    console.log(result);
+
+
+                }
+            };
+            requestObj.send();
+        }
+
+        function sayHi() {
+            const requestObj = new XMLHttpRequest();
+            requestObj.open('GET', 'greetings.json');
+            requestObj.onreadystatechange = () => {
+                if (requestObj.readyState == 4 && requestObj.status == "200") {
+
+                    const result = requestObj.responseText;
+                    console.log(result);
+
+                }
+            };
+            requestObj.send();
+        }
+
+        searchUser();
+        sayHi();
+
+        const userName = prompt('이름을 입력하세요');
+        const password = prompt('비밀번호를 입력하세요');
+
+      script>
+    </body>
+</html>
