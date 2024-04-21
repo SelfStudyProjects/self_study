@@ -21,7 +21,7 @@ HTML/CSS/JS
 
 자바
 
-AWS 배포(Ubuntu)
+배포(Ubuntu, NGINX, Amazon AWS)
 
 ## ✨ 목적
 공부 기록 및 개발 포트폴리오 기록
