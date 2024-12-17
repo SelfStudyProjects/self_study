@@ -20,12 +20,10 @@
 
 - AAICON 학술논문 등재(논문명 : 온라인 교육에서의 AI 기반 학습자 참여도 측정 시스템 연구)(제 2저자 참여)
 
-## ✨  (현재) 공부 언어
-파이썬(Django)
+## ✨  (현재) 가용 언어
+백엔드 : 파이썬(Django, Flask), 자바(SpringBoot)
 
-HTML/CSS/JS
-
-자바
+프론트 : 리액트 JS, HTML/CSS/JS
 
 배포(Ubuntu, NGINX, Amazon AWS)
 
