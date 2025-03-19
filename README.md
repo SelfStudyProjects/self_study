@@ -23,7 +23,7 @@
 ## ✨  (현재) 가용 언어
 백엔드 : 파이썬(Django, Flask), 자바(SpringBoot)
 
-프론트 : 리액트 JS, HTML/CSS/JS
+프론트 : 리액트 JS
 
 배포(Ubuntu, NGINX, Amazon AWS)
 
