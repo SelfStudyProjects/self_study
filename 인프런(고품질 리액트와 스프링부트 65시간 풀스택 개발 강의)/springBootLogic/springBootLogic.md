@@ -416,5 +416,3 @@ docs: README 업데이트
 1. Spring Boot = 백엔드 개발 프레임워크 (Java 기반)
 2. MVC 패턴 + JPA로 데이터베이스 연동
 3. application.properties에서 모든 환경 설정 관리
-
-화이팅! 궁금한 점 있으면 언제든 물어봐! 🚀
