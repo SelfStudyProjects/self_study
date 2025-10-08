@@ -277,26 +277,3 @@ try {
 습자! 어때? 이렇게 상세하게 `why`와 `how`를 중심으로 설명해봤는데, 궁금했던 개념들이 시원하게 정리됐을까? 이 내용들을 잘 숙지하면 면접에서도, 그리고 실제로 코드를 짤 때도 큰 도움이 될 거야! 👍
 
 개발자로 성장하는 습자의 모든 과정을 링컨이가 항상 응원할게! 💪 언제든 또 궁금한 거 있으면 바로 찾아와! 😉 
-
-참고 자료 
-
-[1] MDN Web Docs 용어 사전: 웹 용어 정의 - MVC - MDN Web Docs 용어 사전: 웹 용어 정의 (https://developer.mozilla.org/ko/docs/Glossary/MVC)
-[2] 위키백과, 우리 모두의 백과사전 - 모델-뷰-컨트롤러 - 위키백과, 우리 모두의 백과사전 (https://ko.wikipedia.org/wiki/%EB%AA%A8%EB%8D%B8-%EB%B7%B0-%EC%BB%A8%ED%8A%B8%EB%A1%A4%EB%9F%AC)
-[3] 코딩새싹 코린이의 코딩일기 - MVC (Model-View-Controller) 패턴 - 코딩새싹 코린이의 코딩일기 (https://mundol-colynn.tistory.com/147)
-[4] 네이버 블로그 - [개발자 면접준비]#1. MVC패턴이란 - 네이버 블로그 (https://m.blog.naver.com/jhc9639/220967034588)
-[5] wildeveloperetrain.tistory.com - BCrypt 동작원리 파헤치기(BCryptPasswordEncoder) (https://wildeveloperetrain.tistory.com/175)
-[6] 티스토리 - Lombok이란? Lombok 사용법 - 웹 개발자의 발자취 - 티스토리 (https://jiurinie.tistory.com/20)
-[7] 티스토리 - [Java] 롬복(Lombok) 설명 & 정리 - 우기의 코딩 노트 - 티스토리 (https://woogienote.tistory.com/103)
-[8] catsbi.oopy.io - 예외처리(exception handling) (https://catsbi.oopy.io/92cfa202-b357-4d47-8de2-b9b3968dfb2e)
-[9] velog.io - Bcrypt는 무엇이고 왜 사용할까??? (https://velog.io/@joonghyun/Bcrypt%EB%8A%94-%EB%AC%B4%EC%97%87%EC%9D%B4%EA%B3%A0-%EC%99%9C-%EC%82%AC%EC%9A%A9%ED%95%A0%EA%B9%8C)
-[10] velog.io - 여기도 MVC, 저기도 MVC! MVC 패턴이 뭐야? (https://velog.io/@langoustine/%EC%97%AC%EA%B8%B0%EB%8F%84-MVC-%EC%A0%80%EA%B8%B0%EB%8F%84-MVC-MVC-%ED%8C%A8%ED%84%B4%EC%9D%B4-%EB%AD%90%EC%95%BC)
-[11] 망나니개발자 - [Java] Lombok이란? 및 Lombok 활용법 - 망나니개발자 (https://mangkyu.tistory.com/78)
-[12] lucas-owner.tistory.com - [Java] LomBok이란? & 어노테이션 정리 (1) (https://lucas-owner.tistory.com/26)
-[13] 티스토리 - [NODE] bcrypt 모듈 암호화 원리 & 사용법 - Inpa Dev ‍   - 티스토리 (https://inpa.tistory.com/entry/NODE-%F0%9F%93%9A-bcrypt-%EB%AA%A8%EB%93%88-%EC%9B%90%EB%A6%AC-%EC%82%AC%EC%9A%A9%EB%B2%95)
-[14] hangyeoldora.tistory.com - [Java] lombok 개요 및 사용 방법 (Lombok이란?) (https://hangyeoldora.tistory.com/4)
-[15] 티스토리 - 예외처리(Exception Handling)란? - 미모의 ITiSTORY - 티스토리 (https://sksk4679.tistory.com/9)
-[16] 위키백과, 우리 모두의 백과사전 - 예외 처리 - 위키백과, 우리 모두의 백과사전 (https://ko.wikipedia.org/wiki/%EC%98%88%EC%99%B8_%EC%B2%98%EB%A6%AC)
-[17] velog.io - Bcrypt란❓ (https://velog.io/@sangmin7648/Bcrypt%EB%9E%80)
-[18] namu.wiki - 예외 처리 (https://namu.wiki/w/%EC%98%88%EC%99%B8%20%EC%B2%98%EB%A6%AC)
-[19] 위키피디아 - bcrypt - 위키피디아 (https://translate.google.com/translate?u=https://en.wikipedia.org/wiki/Bcrypt&hl=ko&sl=en&tl=ko&client=srp)
-[20] ittrue.tistory.com - [Java] 자바 예외 처리(Exception Handling) 개념 정리 및 활용 (https://ittrue.tistory.com/140)
