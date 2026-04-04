@@ -1,0 +1,225 @@
+실시간 대시보드 & Supabase 연동 — 역공학 분석 문서
+
+0. 이걸 왜 만들었어? — 탄생 배경
+클래스데이의 "오늘의 수업" 대시보드가 있어요. 선생님이 출석을 기록하면, 대시보드에 출석 현황이 실시간으로 반영되는 기능이에요.
+기존 문제:
+선생님 A가 출석 기록
+  → 대시보드는 그대로
+  → 다른 선생님이 수동으로 새로고침을 눌러야만 반영됨
+우리가 만든 것:
+선생님 A가 출석 기록
+  → 대시보드가 자동으로 "펑!" 하고 갱신됨
+  → 새로고침 필요 없음
+이걸 구현하기 위해 Supabase Realtime 이라는 기술을 사용해요.
+
+1. 전체 구조 — 등장인물 소개
+이 기능에는 총 4명의 등장인물 이 있어요.
+① 선생님          → 출석 기록 버튼 클릭
+② NestJS 서버     → MySQL에 저장 + Supabase에 신호 발송
+③ Supabase        → "변경됐어!" 이벤트를 대시보드에 중계
+④ React 대시보드  → 이벤트 받아서 자동 갱신
+
+비유: 편의점 알바생(선생님)이 계산을 하면(출석 기록), POS 기기(NestJS)가 본사 서버(Supabase)에 신호를 보내고, 본사는 매장 관리 앱(대시보드)에 "재고 변경됐어요!" 알림을 보내는 것.
+
+
+2. 사용된 파일 목록 — 어떤 파일이 뭘 하나?
+백엔드 (NestJS)
+파일역할attendance.service.ts출석 기록 후 Supabase에 신호 보냄supabase.service.tsSupabase attendance_signals 테이블에 UPSERTsupabase.module.tsSupabaseService를 NestJS에 등록todayclass.controller.tsGET /spaces/:spaceId/todayclass API 엔드포인트todayclass.service.ts컨트롤러 요청 처리, Repository 호출todayclass.repository.tsMySQL에서 오늘 수업 데이터 조회 (10개 이상 테이블 JOIN)
+프론트엔드 (React)
+파일역할supabase.tsSupabase 연결 객체 초기화 (앱 전체 싱글턴)use-todayclass.tsSupabase 구독 + React Query로 데이터 관리todayclass.api.ts백엔드 API 호출 함수TodayClassPage.tsx실제 화면 UI
+
+3. 전체 흐름 — 순서대로 완전 해부
+3-1. 출발점: 선생님이 출석 기록
+선생님이 출석부에서 학생 출석 버튼을 누르면, 프론트가 백엔드로 HTTP 요청을 보내요.
+PATCH /spaces/123/courses/456/attendance-records
+3-2. attendance.service.ts — 출석 저장 + 신호 발송
+코드에서 확인한 결과, upsertAttendanceRecord() 함수가 이 순서로 실행돼요.
+typescript// ① MySQL에 출석 저장
+const row = await this.attendanceRepo.upsertAttendanceRecord({ ... });
+
+// ② 자동 알림 문자 발송 (별도 비동기, 우리 주제와 무관)
+void this.attendanceAutoSendService.sendIfEnabled({ ... });
+
+// ③ Supabase에 신호 전송 ← 핵심!
+await this.supabaseService.signalAttendanceUpdated(spaceId);
+MySQL 저장이 성공한 다음에 Supabase 신호를 보내요. 순서가 중요해요.
+
+비유: 음식을 다 만든 다음에 "주문하신 음식 나왔어요!" 벨을 울리는 것. 만들기 전에 벨 울리면 안 되죠.
+
+3-3. supabase.service.ts — Supabase에 "뭔가 바뀌었어!" 신호
+코드에서 확인한 실제 구현:
+typescriptasync signalAttendanceUpdated(spaceId: number): Promise<void> {
+  try {
+    await this.supabase
+      .from('attendance_signals')       // attendance_signals 테이블에
+      .upsert({
+        space_id: spaceId,              // 학원 ID
+        pinged_at: new Date().toISOString()  // 지금 시각 (이게 바뀌어야 Realtime이 감지)
+      });
+  } catch {
+    // 실패해도 출석 기록은 이미 MySQL에 저장됨 → 에러 삼킴
+    console.error('[SupabaseService] signalAttendanceUpdated failed', spaceId);
+  }
+}
+attendance_signals 테이블 구조:
+sqlCREATE TABLE attendance_signals (
+  space_id  integer PRIMARY KEY,   -- 학원마다 행 1개만 유지
+  pinged_at timestamptz            -- 출석 변경이 일어난 시각
+);
+학원마다 행이 딱 1개예요. 출석이 기록될 때마다 그 1개 행의 pinged_at만 계속 업데이트돼요.
+
+비유: 냉장고에 "마지막으로 뭔가 바뀐 시각"을 적는 포스트잇이 딱 1장 붙어 있는 것. 뭐가 바뀔 때마다 시각만 덮어써요.
+
+왜 UPSERT를 써?
+
+행이 없으면 → INSERT (처음 출석 기록하는 학원)
+행이 있으면 → UPDATE (기존 학원, pinged_at만 갱신)
+
+pinged_at이 바뀌어야 Supabase Realtime이 "아, 변경됐네!" 하고 이벤트를 쏴줘요. 같은 값이면 이벤트를 안 쏴요.
+왜 try/catch로 감싸?
+Supabase 신호 전송은 부가 기능 이에요. 실패해도 출석 기록은 MySQL에 이미 저장된 상태예요. 부가 기능 실패가 핵심 기능(출석 기록)까지 실패로 만들면 안 되니까 에러를 삼켜요.
+
+3-4. Supabase Realtime — 중계소 역할
+Supabase가 attendance_signals 테이블의 변경을 감지하고, 그 테이블을 구독하고 있는 프론트에게 이벤트를 날려줘요.
+Supabase 내부:
+  attendance_signals 테이블 변경 감지
+    → "space_id=123 행이 바뀌었어!"
+    → 이 테이블을 구독 중인 클라이언트들에게 이벤트 전송
+이게 작동하려면 사전 설정이 필요해요.
+sql-- 1. Realtime 활성화 (이게 없으면 이벤트가 안 날아감)
+ALTER PUBLICATION supabase_realtime ADD TABLE attendance_signals;
+
+-- 2. RLS 정책 (이게 없으면 anon key로 구독 시 이벤트가 안 옴)
+ALTER TABLE attendance_signals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon can read attendance_signals"
+  ON attendance_signals FOR SELECT TO anon USING (true);
+
+3-5. use-todayclass.ts — 이벤트 받아서 대시보드 갱신
+코드에서 확인한 실제 구현:
+typescriptexport function useTodayClass(spaceId: number, date: string) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (spaceId <= 0) return;
+
+    const channel = supabase
+      .channel('attendance-signals')  // 채널 이름 (임의)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',                          // INSERT/UPDATE/DELETE 모두 감지
+          schema: 'public',
+          table: 'attendance_signals',         // 이 테이블 변경 감지
+          filter: `space_id=eq.${spaceId}`,   // 우리 학원 행만!
+        },
+        () => {
+          // 이벤트 도착 → React Query 캐시 무효화 → 자동 refetch
+          queryClient.invalidateQueries({
+            queryKey: [...todayClassKeys.all, spaceId]
+          });
+        },
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // 구독 완료 시 한 번 갱신 (페이지 첫 진입 시 최신 데이터 보장)
+          queryClient.invalidateQueries({
+            queryKey: [...todayClassKeys.all, spaceId]
+          });
+        }
+      });
+
+    // 페이지 나갈 때 구독 해제 (메모리 누수 방지)
+    return () => { supabase.removeChannel(channel); };
+  }, [spaceId, queryClient]);
+
+  // 실제 데이터 가져오는 부분
+  return useQuery({
+    queryKey: todayClassKeys.byDate(spaceId, date),
+    queryFn: () => fetchTodayClass(spaceId, date),  // API 호출
+    enabled: spaceId > 0 && date.length > 0,
+  });
+}
+filter: 'space_id=eq.123' 이게 왜 중요해?
+학원이 수천 개면 수천 개의 브라우저가 Supabase를 구독하고 있어요. 필터가 없으면 다른 학원의 출석 기록에도 이벤트가 날아와서 쓸데없이 refetch가 일어나요. 필터로 "우리 학원 변경만 받겠다"고 지정해요.
+queryClient.invalidateQueries가 뭐야?
+React Query는 한 번 가져온 데이터를 캐시(임시 저장소)에 보관해요. invalidateQueries는 "이 캐시가 오래됐어, 새로 가져와!" 라고 표시하는 함수예요. 표시하는 순간 자동으로 fetchTodayClass API 호출이 다시 일어나요.
+
+비유: "이 우유 유통기한 지났어!" 스티커를 붙이면 → 새 우유를 자동으로 사러 가는 것.
+
+
+3-6. todayclass.repository.ts — DB에서 오늘 수업 데이터 조회
+API가 호출되면 Repository가 MySQL에서 데이터를 가져와요. 코드에서 확인한 결과, 하나의 SQL 쿼리에서 10개 이상의 테이블을 JOIN 해요.
+sqlSELECT
+  cr.id, cr.name, cr.capacity,       -- 강의실 정보
+  cs.id, cs.name,                     -- 출석반 정보
+  c.id, c.name,                       -- 과정 정보
+  cat.name,                           -- 카테고리
+  g.display_name,                     -- 학년
+  (서브쿼리: 과목 목록),              -- 과목들
+  (서브쿼리: 강사 목록),              -- 강사들
+  sch.start_time, sch.end_time,       -- 수업 시간
+  (서브쿼리: 출석한 학생 수),         -- attended_count
+  (서브쿼리: 등록된 학생 수)          -- expected_count
+FROM office_course_schedule sch
+JOIN office_course_sections cs ...
+JOIN office_courses c ...
+LEFT JOIN office_setting_grades g ...
+LEFT JOIN office_course_categories cat ...
+JOIN office_course_section_classrooms csc ...
+JOIN office_setting_classrooms cr ...
+WHERE DATE_FORMAT(sch.scheduled_date, '%Y-%m-%d') = ?  -- 오늘 날짜
+  AND sch.is_cancelled = FALSE
+  AND c.space_id = ?                                    -- 이 학원
+  AND c.status = 'active'
+이 결과가 대시보드의 그리드 카드 데이터가 돼요.
+
+3-7. TodayClassPage.tsx — 화면에 그리기
+useTodayClass 훅에서 받은 데이터를 시간표 그리드 형태로 화면에 그려요.
+코드에서 확인한 주요 상수들:
+typescriptconst TIME_ROW_HEIGHT = 130;     // 시간 한 칸의 높이 (px)
+const TIME_COL_WIDTH = 88;       // 시간 열 너비
+const ROOM_COL_WIDTH = 240;      // 강의실 열 너비
+const GRID_HEADER_HEIGHT = 52;   // 헤더 높이
+수업 카드는 3가지 상태가 있어요:
+
+upcoming (예정) → 노란색 테두리
+ongoing (진행 중) → 초록색 테두리 + 점 깜빡임
+ended (종료) → 회색, 반투명
+
+
+4. 핵심 흐름 — 처음부터 끝까지 한 번에
+[선생님이 출석 버튼 클릭]
+        ↓
+[attendance.service.ts]
+  → MySQL DB에 출석 저장  ← 핵심 데이터 저장
+  → supabaseService.signalAttendanceUpdated(123) 호출
+        ↓
+[supabase.service.ts]
+  → attendance_signals 테이블에 UPSERT
+    { space_id: 123, pinged_at: "2026-03-29T10:30:00Z" }
+        ↓
+[Supabase Realtime 중계]
+  → "space_id=123 행 변경됨!"
+  → space_id=123 구독 중인 브라우저들에게 이벤트 전송
+        ↓
+[use-todayclass.ts (브라우저)]
+  → postgres_changes 이벤트 수신
+  → queryClient.invalidateQueries(['todayclass', 123])
+        ↓
+[todayclass.api.ts]
+  → GET /spaces/123/todayclass?date=2026-03-29 호출
+        ↓
+[todayclass.controller.ts → service → repository]
+  → MySQL에서 최신 출석 데이터 조회
+  → 응답 반환
+        ↓
+[TodayClassPage.tsx]
+  → 화면 자동 갱신! 새로고침 필요 없음
+
+5. 리소스 정리 — 뭘 얼마나 쓰나?
+리소스사용량비고Supabase UPSERT출석 기록 1건당 1번매우 가벼운 작업Supabase Realtime 이벤트UPSERT 1번당 1개구독 중인 브라우저에만 전달MySQL API 호출 (refetch)이벤트 1개당 1번JOIN 쿼리지만 인덱스 타면 빠름WebSocket 연결대시보드 열려있는 동안 유지탭 닫으면 자동 해제
+학원 특성상 출석 기록은 분당 수 건 수준이라 Supabase Free Plan으로도 충분히 감당 가능해요.
+
+6. 한 줄 요약
+
+"선생님이 출석을 기록하면 → NestJS가 Supabase 테이블에 시각을 업데이트하고 → Supabase가 그 변경을 대시보드 브라우저에 실시간으로 전달해서 → 대시보드가 자동으로 MySQL에서 최신 데이터를 다시 불러와 화면을 갱신한다." 😊
