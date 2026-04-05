@@ -330,7 +330,7 @@ export class TodayClassController {
 
 ---
 
-### 4-6. `apps/api/src/todayclass/todayclass.service.ts`
+### 4-6. `apps/api/src/todayclass/todayclass.service.ts` (complete)
 
 > DB 데이터를 가져와서 API 응답 형태로 가공하는 곳.
 
