@@ -221,7 +221,7 @@ export class CourseModule {}
 
 ---
 
-### 4-4. `apps/api/src/course/attendance/attendance.service.ts` (핵심 수정 부분)
+### 4-4. `apps/api/src/course/attendance/attendance.service.ts` (핵심 수정 부분), complete
 
 > 출석을 MySQL에 저장한 뒤, Supabase에 신호를 보내는 핵심 지점.
 
