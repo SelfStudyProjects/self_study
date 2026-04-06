@@ -411,146 +411,160 @@ export class TodayClassService {
 
 ---
 
-### 4-7. `apps/api/src/todayclass/repositories/todayclass.repository.ts`
+### 4-7. `apps/api/src/todayclass/repositories/todayclass.repository.ts` (complete)
 
 > MySQL DB에서 오늘 수업 데이터를 꺼내오는 SQL 실행 전담.
 
 ```typescript
-import { DatabaseService } from "../../database/database.service";
-import { Injectable } from "@nestjs/common";
+import { DatabaseService } from "../../database/database.service"; // DB에 실제로 쿼리를 날려주는 공용 서비스
+import { Injectable } from "@nestjs/common";                       // @Injectable 데코레이터 사용을 위해 import
 
-// DB row 타입 정의 — SELECT 결과가 어떤 모양인지 TypeScript에 알려줌
+// DB에서 강의실 한 줄이 어떤 모양으로 올지 타입 정의
 export interface ClassroomRow {
-  id: number;
-  name: string;
-  capacity: number;
-  notes: string | null;
+  id: number;                 // 강의실 ID
+  name: string;               // 강의실 이름
+  capacity: number;           // 수용 인원
+  notes: string | null;       // 메모 (없을 수 있어서 null 허용)
 }
 
-// 스케줄 블록 한 줄의 타입 정의
-// 여러 테이블을 JOIN한 결과를 하나의 interface로 표현
+// 오늘 수업 스케줄 한 줄의 DB 결과 모양
 export interface ScheduleBlockRow {
-  classroom_id: number;
-  classroom_name: string;
-  classroom_capacity: number;
-  section_id: number;
-  section_name: string;
-  course_id: number;
-  course_name: string;
-  category_name: string | null;
-  grade_name: string | null;
-  subjects_text: string | null;    // GROUP_CONCAT 결과: "수학,영어"
-  instructors_text: string | null; // GROUP_CONCAT 결과: "김선생,이선생"
-  course_session_id: number | null;
-  start_time: string;              // "09:00" 형태
-  end_time: string;                // "11:00" 형태
-  attended_count: number;          // 출석한 학생 수 (present + late)
-  expected_count: number;          // 등록된 학생 수
+  classroom_id: number;       // 강의실 ID
+  classroom_name: string;     // 강의실 이름
+  classroom_capacity: number; // 강의실 수용 인원
+  section_id: number;         // 출석반 ID
+  section_name: string;       // 출석반 이름
+  course_id: number;          // 과정 ID
+  course_name: string;        // 과정 이름
+  category_name: string | null;   // 카테고리 이름 (없을 수 있음)
+  grade_name: string | null;      // 학년 이름 (없을 수 있음)
+  subjects_text: string | null;   // 과목 목록 "수학,영어" 같이 콤마로 이어 붙인 문자열
+  instructors_text: string | null;// 강사 목록 "김선생,이선생" 같은 문자열
+  course_session_id: number | null; // 수업 회차 ID (없을 수도 있음)
+  start_time: string;         // "09:00" 형태 시간 문자열
+  end_time: string;           // "11:00" 형태 시간 문자열
+  attended_count: number;     // 출석한 학생 수
+  expected_count: number;     // 등록된 학생 수(예상 인원)
 }
 
-@Injectable()
+@Injectable()                      // 이 클래스를 Nest DI 컨테이너가 관리하도록 표시
 export class TodayClassRepository {
 
-  // DatabaseService를 주입받아 raw SQL 실행에 사용
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService, // 생성자에서 DatabaseService를 주입받음
+  ) {}                                     // this.db로 쿼리 실행 가능
 
-  // 이 학원의 강의실 목록을 가져오는 단순 조회
+  // 특정 학원(spaceId)의 강의실 목록을 전부 가져오는 메서드
   async findClassroomsBySpace(spaceId: number): Promise<ClassroomRow[]> {
-    return this.db.query<ClassroomRow>(
+    return this.db.query<ClassroomRow>(      // 결과를 ClassroomRow 배열로 받겠다고 타입 지정
       `SELECT id, name, capacity, notes
        FROM office_setting_classrooms
        WHERE space_id = ?
-         AND deleted_at IS NULL  -- 삭제된 강의실 제외
-       ORDER BY name ASC`,       -- 이름순 정렬
-      [spaceId],                 -- ? 자리에 들어갈 파라미터 (SQL injection 방지)
+         AND deleted_at IS NULL          -- 삭제된 강의실은 제외
+       ORDER BY name ASC`,               -- 이름 기준 오름차순 정렬
+      [spaceId],                         // 위 SQL의 ? 자리에 들어갈 값 (파라미터 바인딩)
     );
   }
 
-  // 오늘 수업 스케줄 전체를 가져오는 복잡한 조회
-  // 10개 이상의 테이블을 JOIN하여 한 번에 필요한 모든 데이터를 가져옴
+  // 특정 학원 + 특정 날짜에 대한 "오늘 수업 스케줄" 전체를 가져오는 메서드
   async findScheduleBlocks(
-    spaceId: number,
-    date: string,
-  ): Promise<ScheduleBlockRow[]> {
+    spaceId: number,                    // 어느 학원인지
+    date: string,                       // 어떤 날짜인지 "YYYY-MM-DD"
+  ): Promise<ScheduleBlockRow[]> {      // 결과는 ScheduleBlockRow 배열
     return this.db.query<ScheduleBlockRow>(
       `SELECT
-         cr.id              AS classroom_id,      -- 강의실 ID
-         cr.name            AS classroom_name,    -- 강의실 이름
-         cr.capacity        AS classroom_capacity,-- 강의실 수용 인원
-         cs.id              AS section_id,        -- 출석반 ID
-         cs.name            AS section_name,      -- 출석반 이름
-         c.id               AS course_id,         -- 과정 ID
-         c.name             AS course_name,       -- 과정 이름
-         cat.name           AS category_name,     -- 카테고리 이름 (없을 수 있음)
-         g.display_name     AS grade_name,        -- 학년 이름 (없을 수 있음)
+         cr.id              AS classroom_id,       -- 강의실 ID
+         cr.name            AS classroom_name,     -- 강의실 이름
+         cr.capacity        AS classroom_capacity, -- 강의실 수용 인원
 
-         -- 서브쿼리: 과목 목록을 쉼표로 합치기
-         -- GROUP_CONCAT: ["수학", "영어"] → "수학,영어"
+         cs.id              AS section_id,         -- 출석반 ID
+         cs.name            AS section_name,       -- 출석반 이름
+
+         c.id               AS course_id,          -- 과정 ID
+         c.name             AS course_name,        -- 과정 이름
+
+         cat.name           AS category_name,      -- 과정 카테고리 이름 (null 가능)
+         g.display_name     AS grade_name,         -- 학년 이름 (null 가능)
+
+         -- 과목 목록을 콤마로 이어 붙인 문자열로 만드는 서브쿼리
          (
            SELECT GROUP_CONCAT(s.name ORDER BY csu.sort_order SEPARATOR ',')
            FROM office_course_subjects csu
-           JOIN office_setting_subjects s ON s.id = csu.subject_id AND s.deleted_at IS NULL
-           WHERE csu.course_id = c.id
-         ) AS subjects_text,
+           JOIN office_setting_subjects s
+             ON s.id = csu.subject_id
+            AND s.deleted_at IS NULL              -- 삭제되지 않은 과목만
+           WHERE csu.course_id = c.id             -- 현재 과정(c)에 연결된 과목들만
+         ) AS subjects_text,                      -- 예: "수학,영어"
 
-         -- 서브쿼리: 강사 목록을 쉼표로 합치기
-         -- is_primary DESC: 주담당 강사가 먼저 오도록 정렬
+         -- 강사 이름 목록을 콤마로 이어 붙인 문자열로 만드는 서브쿼리
          (
-           SELECT GROUP_CONCAT(esu.display_name ORDER BY ci.is_primary DESC, ci.id ASC SEPARATOR ',')
+           SELECT GROUP_CONCAT(
+                    esu.display_name
+                    ORDER BY ci.is_primary DESC,  -- 주강사 먼저
+                             ci.id ASC            -- 그 다음 나머지 강사
+                    SEPARATOR ','
+                  )
            FROM office_course_instructors ci
-           JOIN edu_space_user esu ON esu.id = ci.space_user_id
-           WHERE ci.course_id = c.id
-         ) AS instructors_text,
+           JOIN edu_space_user esu
+             ON esu.id = ci.space_user_id         -- 강사 사용자 정보와 연결
+           WHERE ci.course_id = c.id              -- 현재 과정에 배정된 강사들만
+         ) AS instructors_text,                   -- 예: "김선생,이선생"
 
-         sch.course_session_id,
+         sch.course_session_id,                   -- 이 스케줄의 수업 회차 ID
 
-         -- TIME_FORMAT: "09:00:00" → "09:00" 형태로 포맷 변환
+         -- "09:00:00" 같은 시간을 "09:00" 포맷 문자열로 변환
          TIME_FORMAT(sch.start_time, '%H:%i') AS start_time,
          TIME_FORMAT(sch.end_time, '%H:%i')   AS end_time,
 
-         -- 서브쿼리: 이 회차에 출석한 학생 수
-         -- status IN ('present', 'late'): 출석 또는 지각만 카운트
-         -- COALESCE: section_id가 null이면 default_section_id를 사용
+         -- 이 수업 회차에 실제 출석한 학생 수를 세는 서브쿼리
          (
            SELECT COUNT(*)
            FROM office_attendance_records ar
-           JOIN office_enrollments e ON e.id = ar.enrollment_id
-           WHERE ar.course_session_id = sch.course_session_id
-             AND e.status IN ('new', 'active')
-             AND ar.status IN ('present', 'late')
+           JOIN office_enrollments e
+             ON e.id = ar.enrollment_id
+           WHERE ar.course_session_id = sch.course_session_id -- 이 회차의 출석만
+             AND e.status IN ('new', 'active')                -- 수강 상태가 유효한 학생만
+             AND ar.status IN ('present', 'late')             -- 출석 또는 지각만 카운트
              AND COALESCE(ar.section_id, e.default_section_id) = cs.id
-             AND ar.classroom_id = cr.id
-         ) AS attended_count,
+                -- 출석 기록에 반 정보가 없으면(default_section_id)로 대체
+             AND ar.classroom_id = cr.id                      -- 해당 강의실에서의 출석만
+         ) AS attended_count,                                 -- 출석 인원 수
 
-         -- 서브쿼리: 이 출석반에 등록된 학생 수 (예상 인원)
+         -- 이 출석반에 원래 등록된 학생 수(예상 인원)를 세는 서브쿼리
          (
            SELECT COUNT(*)
            FROM office_enrollments e2
-           WHERE e2.course_id = c.id
-             AND e2.status IN ('new', 'active')
-             AND e2.default_section_id = cs.id
-         ) AS expected_count
+           WHERE e2.course_id = c.id                          -- 이 과정에 속한 등록
+             AND e2.status IN ('new', 'active')               -- 유효한 등록 상태만
+             AND e2.default_section_id = cs.id                -- 이 출석반에 속한 학생만
+         ) AS expected_count                                  -- 예상 인원 수
 
-       FROM office_course_schedule sch
-       JOIN office_course_sections cs         ON cs.id = sch.section_id
-       JOIN office_courses c                  ON c.id = cs.course_id
-       LEFT JOIN office_setting_grades g      ON g.id = c.grade_id
-       LEFT JOIN office_course_categories cat ON cat.id = c.category_id
-       JOIN office_course_section_classrooms csc ON csc.section_id = cs.id
+       FROM office_course_schedule sch                        -- 수업 스케줄 기본 테이블
+       JOIN office_course_sections cs
+         ON cs.id = sch.section_id                            -- 스케줄 ↔ 출석반 연결
+       JOIN office_courses c
+         ON c.id = cs.course_id                               -- 출석반 ↔ 과정 연결
+       LEFT JOIN office_setting_grades g
+         ON g.id = c.grade_id                                 -- 과정 ↔ 학년 (없을 수도 있어서 LEFT JOIN)
+       LEFT JOIN office_course_categories cat
+         ON cat.id = c.category_id                            -- 과정 ↔ 카테고리 (없을 수도 있음)
+       JOIN office_course_section_classrooms csc
+         ON csc.section_id = cs.id                            -- 출석반 ↔ 강의실 연결 테이블
        JOIN office_setting_classrooms cr
-         ON cr.id = csc.classroom_id AND cr.deleted_at IS NULL
+         ON cr.id = csc.classroom_id                          -- 실제 강의실 테이블
+        AND cr.deleted_at IS NULL                             -- 삭제되지 않은 강의실만
 
-       -- WHERE 조건: 오늘 날짜, 취소되지 않은, 숨겨지지 않은, 이 학원의 활성 과정
-       WHERE DATE_FORMAT(sch.scheduled_date, '%Y-%m-%d') = ?
-         AND sch.is_cancelled = FALSE
-         AND sch.deleted_at IS NULL
-         AND cs.is_hidden = FALSE
-         AND c.space_id = ?
-         AND c.status = 'active'
+       -- 어떤 스케줄만 가져올지 필터링하는 WHERE 조건들
+       WHERE DATE_FORMAT(sch.scheduled_date, '%Y-%m-%d') = ?  -- 날짜가 우리가 조회하는 date인 것만
+         AND sch.is_cancelled = FALSE                         -- 취소되지 않은 수업만
+         AND sch.deleted_at IS NULL                           -- 삭제되지 않은 스케줄만
+         AND cs.is_hidden = FALSE                             -- 숨김 처리된 반은 제외
+         AND c.space_id = ?                                   -- 이 학원(spaceId)에 속한 과정만
+         AND c.status = 'active'                              -- 활성화된 과정만
 
-       -- 강의실 이름 오름차순, 같은 강의실 안에서는 시작 시간 오름차순
+       -- 정렬: 강의실 이름 순으로, 같은 강의실 안에서는 시작 시간 순으로
        ORDER BY cr.name ASC, sch.start_time`,
-      [date, spaceId],
+      [date, spaceId],                                        // 위 WHERE의 ? 두 개에 순서대로 들어감
     );
   }
 }
