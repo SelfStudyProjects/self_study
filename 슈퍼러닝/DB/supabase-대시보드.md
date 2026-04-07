@@ -572,7 +572,7 @@ export class TodayClassRepository {
 
 ---
 
-### 4-8. `apps/api/src/todayclass/dto/todayclass.dto.ts`
+### 4-8. `apps/api/src/todayclass/dto/todayclass.dto.ts` (complete)
 
 > 요청 파라미터와 응답 데이터의 모양을 TypeScript로 정의하는 파일.
 
@@ -627,7 +627,7 @@ export interface TodayClassResponseDto {
 
 ---
 
-### 4-9. `apps/api/src/app.module.ts` (관련 부분)
+### 4-9. `apps/api/src/app.module.ts` (관련 부분) (complete)
 
 > 앱 전체의 모듈을 등록하는 최상위 파일.
 
@@ -673,7 +673,7 @@ export class AppModule {}
 
 ---
 
-### 4-10. `apps/web/src/lib/supabase.ts`
+### 4-10. `apps/web/src/lib/supabase.ts`, (complete)
 
 > 프론트엔드에서 Supabase와 연결하는 클라이언트 싱글턴.
 
