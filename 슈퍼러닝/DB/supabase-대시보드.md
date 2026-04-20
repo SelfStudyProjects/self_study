@@ -572,7 +572,7 @@ export class TodayClassRepository {
 
 ---
 
-### 4-8. `apps/api/src/todayclass/dto/todayclass.dto.ts` (complete)
+### 4-8. `apps/api/src/todayclass/dto/todayclass.dto.ts` (complete) 
 
 > 요청 파라미터와 응답 데이터의 모양을 TypeScript로 정의하는 파일.
 
